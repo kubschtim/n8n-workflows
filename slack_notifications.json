@@ -1,0 +1,1115 @@
+{
+  "name": "outlook-calendar-slack-notifications",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-no-sdr-or-no-contact",
+              "leftValue": "={{ $json.sdrEmail }}",
+              "rightValue": "No SDR|No Contact Found",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4ab20018-1f11-4498-9f73-5df1c95695d7",
+      "name": "Is No SDR or No Contact?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [
+        1776,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "events",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1968,
+        1056
+      ],
+      "id": "8a4c4323-3266-450a-b140-9e9a9e21f904",
+      "name": "Split Special Events"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format individual message for No SDR and No Contact Found events\nconst event = $json;\nconst contact = event.contact;\nconst eventData = event.eventData;\nconst sdrInfo = $('Group by SDR').item.json;\n\nconst formatDate = (eventDate) => {\n  if (!eventDate) return 'Date not available';\n  \n  // Handle both date formats (ISO string or object with dateTime)\n  const dateString = typeof eventDate === 'string' ? eventDate : eventDate.dateTime;\n  \n  const options = { \n    weekday: 'long', \n    year: 'numeric', \n    month: 'long', \n    day: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit',\n    timeZone: 'Europe/Berlin'\n  };\n  \n  try {\n    return new Intl.DateTimeFormat('en-US', options).format(new Date(dateString));\n  } catch (error) {\n    return 'Date not available';\n  }\n};\n\nlet messageText = '';\n\n// Different headers based on type\nif (sdrInfo.sdrEmail === 'No Contact Found') {\n  messageText = `⚠️ *Meeting Appointment (Contact not found)*\\n\\n`;\n  \n  // For No Contact Found, use the data from the sheet\n  messageText += `*Date:* ${formatDate(event.eventDateTime)}\\n`;\n  messageText += `*Subject:* ${event.eventSubject || 'Meeting'}\\n\\n`;\n\n  // Show email from the search that failed\n  messageText += `*Email (searched):* ${event.contactEmail || 'No email'}\\n`;\n  messageText += `\\n*Status:* ❌ Contact not found in CRM`;\n  \n} else {\n  messageText = `📅 *Meeting Appointment (No SDR assigned)*\\n\\n`;\n  \n  // Event details from calendar\n  const calendarDate = event.calendarInfo?.start || eventData?.start;\n  const calendarSubject = event.calendarInfo?.subject || eventData?.subject;\n  \n  messageText += `*Date:* ${formatDate(calendarDate)}\\n`;\n  messageText += `*Subject:* ${calendarSubject || 'Meeting'}\\n\\n`;\n  \n  // Contact details\n  if (contact && contact.properties) {\n    const firstName = contact.properties.firstname || '';\n    const lastName = contact.properties.lastname || '';\n    const contactName = `${firstName} ${lastName}`.trim() || 'Unknown';\n    const phone = contact.properties.phone || 'No phone number';\n    const email = contact.properties.email || 'No email';\n    const contactId = contact.properties.hs_object_id || '';\n    \n    messageText += `*Contact:* ${contactName}\\n`;\n    messageText += `*Phone:* ${phone}\\n`;\n    messageText += `*Email:* ${email}\\n`;\n    \n    if (contactId) {\n      messageText += `*📞 Call now:* [Contact Link]\\n`;\n    }\n  }\n  \n  messageText += `\\n*SDR:* No SDR assigned`;\n}\n\nreturn {\n  messageText: messageText,\n  priority: sdrInfo.sdrEmail === 'No Contact Found' ? 3 : 2\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2176,
+        1056
+      ],
+      "id": "ba874d9a-9e4c-43a0-9e6a-a8cd79e94992",
+      "name": "Format Single Special Message"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "CHANNEL_ID_PLACEHOLDER",
+          "mode": "list"
+        },
+        "text": "={{ $json.messageText }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "sendAsUser": "Bot Name"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2400,
+        1056
+      ],
+      "id": "af5593e2-8504-4377-9c72-ba0549cdb59c",
+      "name": "Send Single Special Message",
+      "credentials": {
+        "slackApi": {
+          "id": "SLACK_CREDENTIAL_ID",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "calendar",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        -2448,
+        1152
+      ],
+      "id": "fd71d093-278d-4d0d-abd7-fe107a487fcc",
+      "name": "Get Calendars",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "OUTLOOK_CREDENTIAL_ID",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "filter-cal-1",
+              "leftValue": "={{ $json.owner.name }}",
+              "rightValue": "User Name 1",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "filter-cal-2",
+              "leftValue": "={{ $json.owner.name }}",
+              "rightValue": "User Name 2",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "filter-cal-3",
+              "leftValue": "={{ $json.owner.name }}",
+              "rightValue": "User Name 3",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -2240,
+        1152
+      ],
+      "id": "97e8f858-d9b8-4ba4-9cbe-59c5fc6bdb41",
+      "name": "Filter Calendars"
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "fromAllCalendars": false,
+        "calendarId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "limit": "={{ 2000 }}",
+        "output": "raw",
+        "filters": {
+          "custom": "=start/dateTime ge '{{ new Date().toISOString() }}' and start/dateTime le '{{ new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString() }}' and contains(subject, 'Meeting')\n\n"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        -2048,
+        1152
+      ],
+      "id": "0172bb24-3b39-4166-8153-05d0613aa369",
+      "name": "Get Meeting Events",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "OUTLOOK_CREDENTIAL_ID",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "attendees",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1856,
+        1152
+      ],
+      "id": "026fdcae-efd2-48e0-bebe-58ac3422b80c",
+      "name": "Split Attendees"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "filter-external",
+              "leftValue": "={{ $json.emailAddress.address }}",
+              "rightValue": "yourdomain.com",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -1648,
+        1152
+      ],
+      "id": "e3da1838-7a50-41e3-be76-cb0581a799d3",
+      "name": "Filter External Attendees"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-email",
+              "name": "emailToSearch",
+              "value": "={{ $json.emailAddress.address }}",
+              "type": "string"
+            },
+            {
+              "id": "set-api-key",
+              "name": "crmApiKey",
+              "value": "YOUR_CRM_API_KEY",
+              "type": "string"
+            },
+            {
+              "id": "set-event-data",
+              "name": "eventData",
+              "value": "={{ { subject: $json.subject, id: $json.id, start: $json.start, end: $json.end } }}",
+              "type": "object"
+            },
+            {
+              "id": "85f4f3c6-4713-490b-ad11-09032f40a593",
+              "name": "eventName",
+              "value": "={{ $('Get Meeting Events').item.json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "e5e1d817-5582-4926-a2ca-7007cb00792b",
+              "name": "eventDateTime",
+              "value": "={{ $('Get Meeting Events').item.json.start.dateTime }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bb94a0fe-8a47-4301-ad50-8310c5a3b2e7",
+      "name": "Set Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1456,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1104,
+        1152
+      ],
+      "id": "2649d7e2-2061-4a52-adfa-59a2e3334542",
+      "name": "Process Attendees"
+    },
+    {
+      "parameters": {
+        "amount": 0.5
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -864,
+        1376
+      ],
+      "id": "4d311b26-396e-4261-ae5c-9c0ef660f0b3",
+      "name": "Rate Limit Wait"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.yourcrm.com/v3/objects/contacts/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.crmApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"filterGroups\": [\n    {\n      \"filters\": [\n        {\n          \"propertyName\": \"email\",\n          \"operator\": \"EQ\",\n          \"value\": \"{{ $json.emailToSearch }}\"\n        }\n      ]\n    }\n  ],\n  \"properties\": [\n    \"email\",\n    \"firstname\",\n    \"lastname\",\n    \"phone\",\n    \"company\",\n    \"website\",\n    \"lifecyclestage\",\n    \"createdate\",\n    \"lastmodifieddate\",\n    \"owner_id\",\n    \"sdr\",\n    \"hs_object_id\"\n  ],\n  \"limit\": 1\n}",
+        "options": {}
+      },
+      "id": "31f10b52-ac79-437f-9aac-4f2584f7f15c",
+      "name": "Search CRM Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -528,
+        1376
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HTTP_AUTH_CREDENTIAL_ID",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cbccb7ce-599a-4b8e-a03f-859bd4c3e973",
+              "leftValue": "={{ $('Get Meeting Events').item.json.subject }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "9909937c-63ec-41fd-a1b5-445c2fe9ad9c",
+              "leftValue": "={{ $json.results.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "45c43caf-27b5-43b6-bc45-9ab51ebf4a67",
+      "name": "Contact Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [
+        160,
+        1136
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "extract-contact",
+              "name": "contact",
+              "value": "={{ $json.results[0] }}",
+              "type": "object"
+            },
+            {
+              "id": "extract-sdr-id",
+              "name": "sdrId",
+              "value": "={{ $json.results[0].properties.sdr }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-event",
+              "name": "eventData",
+              "value": "={{ $('Set Configuration').item.json.eventData }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "56d2d096-e46a-4dc3-aead-6a641aef1c14",
+      "name": "Extract Contact Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        352,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-sdr",
+              "leftValue": "={{ $json.sdrId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4d9d7ac6-129a-4637-9685-d7ce1cce3031",
+      "name": "Has SDR?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [
+        560,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.yourcrm.com/v3/owners/{{ $json.sdrId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Set Configuration').item.json.crmApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fa5e9744-1836-43e7-8078-619268e9afaa",
+      "name": "Get SDR Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        752,
+        976
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HTTP_AUTH_CREDENTIAL_ID",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Map email addresses to Slack user IDs\nconst emailToUserIdMap = {\n  \"user1@company.com\": \"U000000001\",\n  \"user2@company.com\": \"U000000002\",\n  \"user3@company.com\": \"U000000003\",\n  // Add more mappings as needed\n};\n\nconst email = $json.email;\nconst slackUserId = emailToUserIdMap[email];\nconst sdrName = $json.firstName + ' ' + $json.lastName;\n\nreturn {\n  sdrEmail: email,\n  sdrName: sdrName,\n  slackUserId: slackUserId || null,\n  contact: $('Extract Contact Data').item.json.contact,\n  eventData: $('Extract Contact Data').item.json.eventData\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        976
+      ],
+      "id": "5499f9c5-f4ac-421e-8e1b-8c56dc5c1c1f",
+      "name": "Map SDR to Slack ID"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "no-sdr-data",
+              "name": "sdrEmail",
+              "value": "No SDR",
+              "type": "string"
+            },
+            {
+              "id": "no-sdr-name",
+              "name": "sdrName",
+              "value": "No SDR assigned",
+              "type": "string"
+            },
+            {
+              "id": "no-slack-id",
+              "name": "slackUserId",
+              "value": "={{ null }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-contact",
+              "name": "contact",
+              "value": "={{ $json.contact }}",
+              "type": "object"
+            },
+            {
+              "id": "pass-event-no-sdr",
+              "name": "eventData",
+              "value": "={{ $json.eventData }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "14ffb7ce-dcef-434f-98bc-a824cbac26ad",
+      "name": "No SDR Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        1136
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "no-contact",
+              "name": "contact",
+              "value": "={{ null }}",
+              "type": "string"
+            },
+            {
+              "id": "no-sdr-email",
+              "name": "sdrEmail",
+              "value": "No Contact Found",
+              "type": "string"
+            },
+            {
+              "id": "no-sdr-name",
+              "name": "sdrName",
+              "value": "No Contact Found",
+              "type": "string"
+            },
+            {
+              "id": "no-slack",
+              "name": "slackUserId",
+              "value": "={{ null }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-event-no-contact",
+              "name": "eventData",
+              "value": "={{ $('Set Configuration').item.json.eventData }}",
+              "type": "object"
+            },
+            {
+              "id": "no-contact-email",
+              "name": "contactEmail",
+              "value": "={{ $json.mail }}",
+              "type": "string"
+            },
+            {
+              "id": "no-contact-meeting",
+              "name": "eventSubject",
+              "value": "={{ $json.meeting }}",
+              "type": "string"
+            },
+            {
+              "id": "no-contact-datetime",
+              "name": "eventDateTime",
+              "value": "={{ $json['date / time'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d74f4920-93ae-4405-a730-89530193bdd9",
+      "name": "No Contact Found",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        352,
+        1216
+      ]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1152,
+        1056
+      ],
+      "id": "5438a3c9-6a75-453c-81bc-743e8616296f",
+      "name": "Merge SDR Data"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1392,
+        1200
+      ],
+      "id": "d63dbb15-f0d9-43ae-924e-1a3c70df02aa",
+      "name": "Merge All Contacts"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Group items by SDR email and sort chronologically\nconst groupedBySdr = {};\n\nconst meetingItems = $('Get Meeting Events').all();\n\nfor (const item of $input.all()) {\n  const sdrEmail = item.json.sdrEmail || 'No SDR';\n  const contactEmail = item.json.contact?.properties?.email || item.json.contactEmail;\n\n  if (!groupedBySdr[sdrEmail]) {\n    groupedBySdr[sdrEmail] = {\n      sdrName: item.json.sdrName || 'No SDR assigned',\n      sdrEmail: sdrEmail,\n      slackUserId: item.json.slackUserId,\n      events: []\n    };\n  }\n\n  // Find corresponding calendar item where any attendee email matches contactEmail\n  const matchingEvent = meetingItems.find(eventItem => {\n    const attendees = eventItem.json?.attendees || [];\n    return attendees.some(att => att.emailAddress?.address === contactEmail);\n  });\n\n  const calendarData = matchingEvent?.json;\n\n  groupedBySdr[sdrEmail].events.push({\n    calendarInfo: calendarData,\n    contact: item.json.contact,\n    eventData: item.json.eventData,\n    // Pass through the sheet data for No Contact Found cases\n    contactEmail: item.json.contactEmail,\n    eventSubject: item.json.eventSubject,\n    eventDateTime: item.json.eventDateTime\n  });\n}\n\n// Sort events within each SDR group chronologically (closest to now first)\nfor (const sdrEmail in groupedBySdr) {\n  groupedBySdr[sdrEmail].events.sort((a, b) => {\n    // Get date from calendar info or from event data\n    const dateA = new Date(a.calendarInfo?.start?.dateTime || a.eventDateTime || 0);\n    const dateB = new Date(b.calendarInfo?.start?.dateTime || b.eventDateTime || 0);\n    // Sort ascending so closest meetings come first\n    return dateA - dateB;\n  });\n}\n\n// Convert to array and sort by priority\nconst output = Object.values(groupedBySdr)\n  .sort((a, b) => {\n    // Priority order:\n    // 1. SDRs with assignments (have slackUserId)\n    // 2. No SDR assigned\n    // 3. No Contact Found\n    \n    // Check if it's a real SDR (has slackUserId)\n    const aHasSDR = a.slackUserId !== null && a.slackUserId !== undefined;\n    const bHasSDR = b.slackUserId !== null && b.slackUserId !== undefined;\n    \n    // Check special cases\n    const aIsNoSDR = a.sdrEmail === 'No SDR';\n    const bIsNoSDR = b.sdrEmail === 'No SDR';\n    const aIsNoContact = a.sdrEmail === 'No Contact Found';\n    const bIsNoContact = b.sdrEmail === 'No Contact Found';\n    \n    // Sort logic\n    if (aHasSDR && !bHasSDR) return -1;\n    if (!aHasSDR && bHasSDR) return 1;\n    \n    if (!aHasSDR && !bHasSDR) {\n      // Both don't have SDR, check special cases\n      if (aIsNoSDR && bIsNoContact) return -1;\n      if (aIsNoContact && bIsNoSDR) return 1;\n    }\n    \n    // Same priority, keep original order\n    return 0;\n  })\n  .map(sdrGroup => {\n    return {\n      json: sdrGroup\n    };\n  });\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        1200
+      ],
+      "id": "e3b03a14-b506-4ea2-99ae-4a2e9094246b",
+      "name": "Group by SDR"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "events",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1968,
+        1216
+      ],
+      "id": "split-events-for-sdr",
+      "name": "Split Events for SDR"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format individual message for SDR-assigned events\nconst event = $json;\nconst contact = event.contact;\nconst eventData = event.eventData;\nconst sdrInfo = $('Group by SDR').item.json;\n\nconst formatDate = (eventDate) => {\n  if (!eventDate || !eventDate.dateTime) return 'Date not available';\n  \n  const options = { \n    weekday: 'long', \n    year: 'numeric', \n    month: 'long', \n    day: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit',\n    timeZone: 'Europe/Berlin'\n  };\n  \n  try {\n    return new Intl.DateTimeFormat('en-US', options).format(new Date(eventDate.dateTime));\n  } catch (error) {\n    return 'Date not available';\n  }\n};\n\nlet messageText = '';\n\n// Header with SDR info\nif (sdrInfo.slackUserId) {\n  messageText = `📅 *Meeting Appointment*\\n\\n`;\n  messageText += `*SDR Contact Owner:* <@${sdrInfo.slackUserId}> (${sdrInfo.sdrName})\\n\\n`;\n} else {\n  messageText = `📅 *Meeting Appointment*\\n\\n`;\n  messageText += `*SDR Contact Owner:* ${sdrInfo.sdrName}\\n\\n`;\n}\n\n// Event details\nconst calendarDate = event.calendarInfo?.start;\nconst calendarSubject = event.calendarInfo?.subject;\n\nmessageText += `*Date:* ${formatDate(calendarDate)}\\n`;\nmessageText += `*Subject:* ${calendarSubject || 'Meeting'}\\n\\n`;\n\n// Contact details\nif (contact && contact.properties) {\n  const firstName = contact.properties.firstname || '';\n  const lastName = contact.properties.lastname || '';\n  const contactName = `${firstName} ${lastName}`.trim() || 'Unknown';\n  const phone = contact.properties.phone || 'No phone number';\n  const email = contact.properties.email || 'No email';\n  const contactId = contact.properties.hs_object_id || '';\n  \n  messageText += `*Contact:* ${contactName}\\n`;\n  messageText += `*Phone:* ${phone}\\n`;\n  messageText += `*Email:* ${email}\\n`;\n  \n  if (contactId) {\n    messageText += `*📞 Call now:* [Contact Link]\\n`;\n  }\n} else {\n  messageText += `*Contact:* Not found in CRM\\n`;\n}\n\nreturn {\n  messageText: messageText,\n  sdrName: sdrInfo.sdrName,\n  priority: 1\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2176,
+        1216
+      ],
+      "id": "format-single-sdr-message",
+      "name": "Format Single SDR Message"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "CHANNEL_ID_PLACEHOLDER",
+          "mode": "list"
+        },
+        "text": "={{ $json.messageText }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "sendAsUser": "Bot Name"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2400,
+        1216
+      ],
+      "id": "send-single-sdr-message",
+      "name": "Send Single SDR Message",
+      "credentials": {
+        "slackApi": {
+          "id": "SLACK_CREDENTIAL_ID",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -2976,
+        1200
+      ],
+      "id": "f20e847f-f2b2-40ad-9740-1076fe5ee0ff",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "content": "## Getting Calendar Info & Filtering Only For Attendee Emails",
+        "height": 448,
+        "width": 1232,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2544,
+        1008
+      ],
+      "id": "8bf5018d-c3e1-4ae0-8a12-dc5cdbbff179",
+      "name": "Sticky Note - Calendar"
+    },
+    {
+      "parameters": {
+        "content": "## Looping Through Attendees & Searching For CRM Contact",
+        "height": 672,
+        "width": 1328,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1200,
+        1008
+      ],
+      "id": "deb8c005-ac75-4287-8393-ec0f1fbd2cef",
+      "name": "Sticky Note - CRM Search"
+    },
+    {
+      "parameters": {
+        "content": "## Looking For SDR Contact Owner & Mapping Email To Slack UserID",
+        "height": 592,
+        "width": 1584,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        144,
+        832
+      ],
+      "id": "b479553d-609f-463c-8a31-728501858c76",
+      "name": "Sticky Note - SDR Mapping"
+    },
+    {
+      "parameters": {
+        "content": "## Send Slack Notification",
+        "height": 464,
+        "width": 832,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1744,
+        960
+      ],
+      "typeVersion": 1,
+      "id": "f85d371f-e14b-4844-a936-981eb261481e",
+      "name": "Sticky Note - Slack"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Is No SDR or No Contact?": {
+      "main": [
+        [
+          {
+            "node": "Split Special Events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split Events for SDR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Special Events": {
+      "main": [
+        [
+          {
+            "node": "Format Single Special Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Single Special Message": {
+      "main": [
+        [
+          {
+            "node": "Send Single Special Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Calendars": {
+      "main": [
+        [
+          {
+            "node": "Filter Calendars",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Calendars": {
+      "main": [
+        [
+          {
+            "node": "Get Meeting Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Meeting Events": {
+      "main": [
+        [
+          {
+            "node": "Split Attendees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Attendees": {
+      "main": [
+        [
+          {
+            "node": "Filter External Attendees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter External Attendees": {
+      "main": [
+        [
+          {
+            "node": "Set Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Configuration": {
+      "main": [
+        [
+          {
+            "node": "Process Attendees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Attendees": {
+      "main": [
+        [
+          {
+            "node": "Contact Found?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rate Limit Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Wait": {
+      "main": [
+        [
+          {
+            "node": "Search CRM Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search CRM Contact": {
+      "main": [
+        [
+          {
+            "node": "Process Attendees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact Found?": {
+      "main": [
+        [
+          {
+            "node": "Extract Contact Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Contact Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Contact Data": {
+      "main": [
+        [
+          {
+            "node": "Has SDR?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has SDR?": {
+      "main": [
+        [
+          {
+            "node": "Get SDR Details",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No SDR Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get SDR Details": {
+      "main": [
+        [
+          {
+            "node": "Map SDR to Slack ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map SDR to Slack ID": {
+      "main": [
+        [
+          {
+            "node": "Merge SDR Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No SDR Data": {
+      "main": [
+        [
+          {
+            "node": "Merge SDR Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "No Contact Found": {
+      "main": [
+        [
+          {
+            "node": "Merge All Contacts",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge SDR Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All Contacts": {
+      "main": [
+        [
+          {
+            "node": "Group by SDR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Group by SDR": {
+      "main": [
+        [
+          {
+            "node": "Is No SDR or No Contact?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Events for SDR": {
+      "main": [
+        [
+          {
+            "node": "Format Single SDR Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Single SDR Message": {
+      "main": [
+        [
+          {
+            "node": "Send Single SDR Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Calendars",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "id": "outlook-slack-workflow",
+  "tags": []
+}
