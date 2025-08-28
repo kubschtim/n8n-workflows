@@ -1,0 +1,247 @@
+{
+  "name": "personal manager",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "7fc2dfac-fbbc-40bc-8e4c-20c3265ca2e6",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        16,
+        1408
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analyze this LinkedIn post and extract the key points, data, and main message. Format as JSON with fields: title, keyPoints (array), statistics (array), mainMessage, tone, targetAudience.\n\nText: {{ $json.postText }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "391618ff-1c3a-40de-8f0f-abd312cf576a",
+      "name": "Analyze Content",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        1408
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "m4ikxWFPfQiihnZ0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the analysis and generate 10 different infographic prompts\nconst analysis = JSON.parse($input.first().json.response);\nconst baseText = $('Manual Trigger').first().json.postText;\n\nconst infographicStyles = [\n  {\n    style: \"Minimalist Data Visualization\",\n    prompt: `Create a clean, minimalist infographic with data visualization. Title: \"${analysis.title}\". Show ${analysis.statistics.join(', ')} as modern charts and graphs. Use a professional blue and white color scheme. Corporate style, vector graphics, high contrast.`\n  },\n  {\n    style: \"Timeline Infographic\",\n    prompt: `Design a horizontal timeline infographic showing the progression of ${analysis.mainMessage}. Include ${analysis.keyPoints.length} key milestones with icons. Modern gradient colors from purple to blue. Clean typography, business professional.`\n  },\n  {\n    style: \"Comparison Chart\",\n    prompt: `Create a before/after comparison infographic. Left side: 'Traditional Approach' in muted colors. Right side: '${analysis.title}' in vibrant colors. Include statistics: ${analysis.statistics.join(', ')}. Split design, contrasting colors.`\n  },\n  {\n    style: \"Icon-Based Layout\",\n    prompt: `Design an icon-based infographic grid. ${analysis.keyPoints.length} sections, each with a unique flat icon and short text. Title: \"${analysis.title}\". Colorful flat design, geometric shapes, modern icons.`\n  },\n  {\n    style: \"Flowchart Process\",\n    prompt: `Create a flowchart infographic showing the process of ${analysis.mainMessage}. Connect ${analysis.keyPoints.length} steps with arrows. Use gradient backgrounds, modern UI elements. Tech-style design.`\n  },\n  {\n    style: \"Statistical Dashboard\",\n    prompt: `Design a dashboard-style infographic with multiple data widgets. Show ${analysis.statistics.join(', ')} as gauges, progress bars, and pie charts. Dark mode theme with neon accents. Futuristic data visualization.`\n  },\n  {\n    style: \"Pyramid Hierarchy\",\n    prompt: `Create a pyramid infographic with ${analysis.keyPoints.length} levels. Bottom to top progression showing ${analysis.mainMessage}. Each level different color, professional gradient. Business hierarchy visualization.`\n  },\n  {\n    style: \"Circular Diagram\",\n    prompt: `Design a circular/radial infographic. Center: \"${analysis.title}\". Radiating sections for each key point. Include ${analysis.statistics[0] || '30%'} as prominent statistic. Mandala-like business diagram.`\n  },\n  {\n    style: \"Magazine Layout\",\n    prompt: `Create a magazine-style infographic layout. Bold headline: \"${analysis.title}\". Mix of text blocks, pull quotes, and data visualizations. Editorial design, professional typography, asymmetric layout.`\n  },\n  {\n    style: \"3D Isometric\",\n    prompt: `Design an isometric 3D infographic. Show ${analysis.keyPoints.length} interconnected blocks or buildings. Each represents a benefit. Include floating data labels. Modern 3D illustration style, tech company aesthetic.`\n  }\n];\n\nreturn infographicStyles.map((item, index) => ({\n  json: {\n    ...item,\n    index: index + 1,\n    analysis: analysis,\n    originalText: baseText,\n    aspectRatio: \"16:9\",\n    size: \"1792x1024\"\n  }\n}));"
+      },
+      "id": "534101b7-59e3-4eeb-af3b-9d6a8743315c",
+      "name": "Generate 10 Prompts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        1392
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "prompt": "={{ $json.prompt }}",
+        "options": {
+          "size": "1792x1024",
+          "style": "natural"
+        }
+      },
+      "id": "ef322e1b-84de-47f9-90c1-6f8292faec47",
+      "name": "Generate Images",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        1392
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "m4ikxWFPfQiihnZ0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fileName": "=infographic_{{ $json.index }}_{{ $json.style.replace(/ /g, '_').toLowerCase() }}.png",
+        "options": {
+          "append": false
+        }
+      },
+      "id": "6e4c0028-b35a-42b4-95b7-afc7ec8eded7",
+      "name": "Save Images",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        1392
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compile final output with all generated images and metadata\nconst items = $input.all();\nconst originalText = items[0].json.originalText;\nconst analysis = items[0].json.analysis;\n\nconst output = {\n  linkedInPost: originalText,\n  analysis: analysis,\n  generatedImages: items.map(item => ({\n    style: item.json.style,\n    fileName: `infographic_${item.json.index}_${item.json.style.replace(/ /g, '_').toLowerCase()}.png`,\n    prompt: item.json.prompt,\n    index: item.json.index\n  })),\n  totalImages: items.length,\n  timestamp: new Date().toISOString(),\n  usage: {\n    recommendation: \"Choose the infographic style that best matches your brand and audience. Post with your original text on LinkedIn for maximum engagement.\",\n    tips: [\n      \"Use carousel posts for multiple images\",\n      \"Add relevant hashtags\",\n      \"Post during peak engagement hours (Tue-Thu, 8-10 AM or 5-6 PM)\",\n      \"Engage with comments in the first hour\"\n    ]\n  }\n};\n\nreturn [{ json: output }];"
+      },
+      "id": "45ba9ebe-95c9-4af7-96c8-3a219fe2a911",
+      "name": "Prepare Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        1392
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-response",
+              "leftValue": "={{ $json.response }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6374fbd1-0298-492a-8bad-136bd2e05c70",
+      "name": "Check Analysis",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        1408
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "Error!"
+      },
+      "id": "13fe8fe8-97f8-4955-a972-24b080c4b5d8",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        768,
+        1584
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Analyze Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Content": {
+      "main": [
+        [
+          {
+            "node": "Check Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Analysis": {
+      "main": [
+        [
+          {
+            "node": "Generate 10 Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate 10 Prompts": {
+      "main": [
+        [
+          {
+            "node": "Generate Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Images": {
+      "main": [
+        [
+          {
+            "node": "Save Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Images": {
+      "main": [
+        [
+          {
+            "node": "Prepare Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "efff0feb-fe7d-4bcc-b3f4-918630fa504e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8ba5b87178cf36ad914eab86a837f8630151ee80f055208ac6e2871f0e093149"
+  },
+  "id": "RZ21cBzZdYny1aqu",
+  "tags": []
+}
