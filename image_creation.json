@@ -8,110 +8,154 @@
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.1,
       "position": [
-        224,
-        1408
+        1120,
+        288
       ],
-      "id": "f4b7f056-06d8-4761-8828-403ee09b2377",
+      "id": "05a1cdb7-c891-49fd-87f3-1602fef08a3f",
       "name": "When chat message received",
-      "webhookId": "30a467f4-c463-43cb-855d-1c1b9b0addf8"
-    },
-    {
-      "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "gpt-4",
-          "mode": "list"
-        },
-        "messages": {
-          "values": [
-            {
-              "content": "=Analyze this LinkedIn post and extract the key points, data, and main message. Format as JSON with fields: title, keyPoints (array), statistics (array), mainMessage, tone, targetAudience.\n\nText: {{ $json.postText }}"
-            }
-          ]
-        },
-        "options": {
-          "temperature": 0.7
-        }
-      },
-      "id": "483b61ca-373b-4907-a54a-29d1a63cc8fd",
-      "name": "Analyze Content1",
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 1.3,
-      "position": [
-        528,
-        1920
-      ],
-      "credentials": {
-        "openAiApi": {
-          "id": "m4ikxWFPfQiihnZ0",
-          "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Parse the analysis and generate 10 different infographic prompts\nconst analysis = JSON.parse($input.first().json.response);\nconst baseText = $('Manual Trigger').first().json.postText;\n\nconst infographicStyles = [\n  {\n    style: \"Minimalist Data Visualization\",\n    prompt: `Create a clean, minimalist infographic with data visualization. Title: \"${analysis.title}\". Show ${analysis.statistics.join(', ')} as modern charts and graphs. Use a professional blue and white color scheme. Corporate style, vector graphics, high contrast.`\n  },\n  {\n    style: \"Timeline Infographic\",\n    prompt: `Design a horizontal timeline infographic showing the progression of ${analysis.mainMessage}. Include ${analysis.keyPoints.length} key milestones with icons. Modern gradient colors from purple to blue. Clean typography, business professional.`\n  },\n  {\n    style: \"Comparison Chart\",\n    prompt: `Create a before/after comparison infographic. Left side: 'Traditional Approach' in muted colors. Right side: '${analysis.title}' in vibrant colors. Include statistics: ${analysis.statistics.join(', ')}. Split design, contrasting colors.`\n  },\n  {\n    style: \"Icon-Based Layout\",\n    prompt: `Design an icon-based infographic grid. ${analysis.keyPoints.length} sections, each with a unique flat icon and short text. Title: \"${analysis.title}\". Colorful flat design, geometric shapes, modern icons.`\n  },\n  {\n    style: \"Flowchart Process\",\n    prompt: `Create a flowchart infographic showing the process of ${analysis.mainMessage}. Connect ${analysis.keyPoints.length} steps with arrows. Use gradient backgrounds, modern UI elements. Tech-style design.`\n  },\n  {\n    style: \"Statistical Dashboard\",\n    prompt: `Design a dashboard-style infographic with multiple data widgets. Show ${analysis.statistics.join(', ')} as gauges, progress bars, and pie charts. Dark mode theme with neon accents. Futuristic data visualization.`\n  },\n  {\n    style: \"Pyramid Hierarchy\",\n    prompt: `Create a pyramid infographic with ${analysis.keyPoints.length} levels. Bottom to top progression showing ${analysis.mainMessage}. Each level different color, professional gradient. Business hierarchy visualization.`\n  },\n  {\n    style: \"Circular Diagram\",\n    prompt: `Design a circular/radial infographic. Center: \"${analysis.title}\". Radiating sections for each key point. Include ${analysis.statistics[0] || '30%'} as prominent statistic. Mandala-like business diagram.`\n  },\n  {\n    style: \"Magazine Layout\",\n    prompt: `Create a magazine-style infographic layout. Bold headline: \"${analysis.title}\". Mix of text blocks, pull quotes, and data visualizations. Editorial design, professional typography, asymmetric layout.`\n  },\n  {\n    style: \"3D Isometric\",\n    prompt: `Design an isometric 3D infographic. Show ${analysis.keyPoints.length} interconnected blocks or buildings. Each represents a benefit. Include floating data labels. Modern 3D illustration style, tech company aesthetic.`\n  }\n];\n\nreturn infographicStyles.map((item, index) => ({\n  json: {\n    ...item,\n    index: index + 1,\n    analysis: analysis,\n    originalText: baseText,\n    aspectRatio: \"16:9\",\n    size: \"1792x1024\"\n  }\n}));"
-      },
-      "id": "1df2c486-3a83-41a7-8368-3f5c5fce4c62",
-      "name": "Generate 10 Prompts1",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1040,
-        1760
-      ]
+      "webhookId": "chat-webhook-123"
     },
     {
       "parameters": {
         "resource": "image",
-        "prompt": "={{ $json.prompt }}",
+        "prompt": "={{ $json.chatInput }}",
         "options": {
-          "size": "1024x1024",
-          "style": "natural"
+          "size": {
+            "__rl": true,
+            "value": "1024x1024",
+            "mode": "list"
+          }
         }
       },
-      "id": "28d3d8a9-5749-43ab-a8d6-41a562aa00a7",
-      "name": "Generate Images1",
+      "id": "f9151596-2983-42fd-93f5-c667fec11d03",
+      "name": "Generate Image",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.3,
       "position": [
-        1216,
-        1808
-      ],
-      "credentials": {
-        "openAiApi": {
-          "id": "m4ikxWFPfQiihnZ0",
-          "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "fileName": "=infographic_{{ $json.index }}_{{ $json.style.replace(/ /g, '_').toLowerCase() }}.png",
-        "options": {
-          "append": false
-        }
-      },
-      "id": "f043c548-7984-4897-a1b5-6b9bd5fba5e3",
-      "name": "Save Images1",
-      "type": "n8n-nodes-base.writeBinaryFile",
-      "typeVersion": 1,
-      "position": [
-        1392,
-        1808
+        1312,
+        288
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Compile final output with all generated images and metadata\nconst items = $input.all();\nconst originalText = items[0].json.originalText;\nconst analysis = items[0].json.analysis;\n\nconst output = {\n  linkedInPost: originalText,\n  analysis: analysis,\n  generatedImages: items.map(item => ({\n    style: item.json.style,\n    fileName: `infographic_${item.json.index}_${item.json.style.replace(/ /g, '_').toLowerCase()}.png`,\n    prompt: item.json.prompt,\n    index: item.json.index\n  })),\n  totalImages: items.length,\n  timestamp: new Date().toISOString(),\n  usage: {\n    recommendation: \"Choose the infographic style that best matches your brand and audience. Post with your original text on LinkedIn for maximum engagement.\",\n    tips: [\n      \"Use carousel posts for multiple images\",\n      \"Add relevant hashtags\",\n      \"Post during peak engagement hours (Tue-Thu, 8-10 AM or 5-6 PM)\",\n      \"Engage with comments in the first hour\"\n    ]\n  }\n};\n\nreturn [{ json: output }];"
+        "url": "={{ $json.data[0].url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
       },
-      "id": "24bccef2-d8dc-4683-9179-7434634814e8",
-      "name": "Prepare Output1",
+      "id": "301c36bb-d1cb-43fb-b914-7643eb3a15f7",
+      "name": "Download Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare filename and metadata\nconst chatInput = $('When chat message received').first().json.chatInput;\nconst timestamp = new Date();\nconst dateStr = timestamp.toISOString().split('T')[0];\nconst timeStr = timestamp.toTimeString().split(' ')[0].replace(/:/g, '-');\n\n// Create a safe filename from the prompt (first 50 chars, no special chars)\nconst safePrompt = chatInput\n  .substring(0, 50)\n  .replace(/[^a-zA-Z0-9 ]/g, '')\n  .replace(/\\s+/g, '_')\n  .toLowerCase();\n\n// Generate filename: date_time_prompt.png\nconst filename = `${dateStr}_${timeStr}_${safePrompt}.png`;\n\n// Get image data from previous node\nconst imageData = $('Generate Image').first().json;\n\nreturn [{\n  json: {\n    filename: filename,\n    prompt: chatInput,\n    timestamp: timestamp.toISOString(),\n    dateStr: dateStr,\n    revisedPrompt: imageData.data?.[0]?.revised_prompt || chatInput,\n    folderName: `AI_Images_${dateStr.substring(0, 7)}` // Monthly folders (YYYY-MM)\n  },\n  binary: {\n    data: $input.first().binary.data\n  }\n}];"
+      },
+      "id": "b14c7a23-f1b2-4d26-b2e8-fd63abc13e2e",
+      "name": "Prepare File Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1520,
-        1904
+        1712,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "name": "={{ $json.filename }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "root",
+          "cachedResultName": "/ (Root folder)"
+        },
+        "options": {}
+      },
+      "id": "cd9334fa-5aa8-4b2c-ba9d-554394dd2092",
+      "name": "Upload to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2880,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Image_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $('Prepare File Data').first().json.timestamp }}",
+            "Prompt": "={{ $('Prepare File Data').first().json.prompt }}",
+            "Filename": "={{ $('Prepare File Data').first().json.filename }}",
+            "Drive Link": "={{ $json.webViewLink }}",
+            "Drive ID": "={{ $json.id }}",
+            "Folder": "={{ $('Prepare File Data').first().json.folderName }}",
+            "Size": "={{ $json.size }}",
+            "Status": "Success"
+          }
+        },
+        "options": {}
+      },
+      "id": "15d350fd-279e-477f-bd93-2242a5da8a57",
+      "name": "Log to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3184,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Create a comprehensive response for the chat\nconst driveFile = $('Upload to Google Drive').first().json;\nconst fileData = $('Prepare File Data').first().json;\n\nlet response = `✅ **Image Generated & Stored Successfully!**\\n\\n`;\nresponse += `🎨 **Your Prompt:** ${fileData.prompt}\\n\\n`;\nresponse += `📁 **Saved to Google Drive:**\\n`;\nresponse += `   • Filename: ${fileData.filename}\\n`;\nresponse += `   • Folder: ${fileData.folderName}\\n`;\nresponse += `   • Size: ${(driveFile.size / 1024).toFixed(2)} KB\\n\\n`;\nresponse += `🔗 **Permanent Link:** ${driveFile.webViewLink}\\n\\n`;\nresponse += `📊 **Logged:** Added to tracking spreadsheet\\n\\n`;\nresponse += `💡 **Benefits:**\\n`;\nresponse += `   • Image stored permanently in your Drive\\n`;\nresponse += `   • Shareable link that never expires\\n`;\nresponse += `   • Organized in monthly folders\\n`;\nresponse += `   • Full history in spreadsheet`;\n\nreturn [{\n  json: {\n    response: response,\n    driveLink: driveFile.webViewLink,\n    fileId: driveFile.id\n  }\n}];"
+      },
+      "id": "b52450d1-5e48-4e21-a2c6-635d8b57b846",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3424,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "list"
+      },
+      "id": "9feca76a-8fd3-482d-8345-b8c86cff4bcb",
+      "name": "Check if Folder Exists",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1904,
+        288
       ]
     },
     {
@@ -124,12 +168,12 @@
           },
           "conditions": [
             {
-              "id": "check-response",
-              "leftValue": "={{ $json.response }}",
-              "rightValue": "",
+              "id": "folder-exists",
+              "leftValue": "={{ $json.files.length }}",
+              "rightValue": 0,
               "operator": {
-                "type": "string",
-                "operation": "isNotEmpty"
+                "type": "number",
+                "operation": "gt"
               }
             }
           ],
@@ -137,27 +181,51 @@
         },
         "options": {}
       },
-      "id": "f4152163-e3fd-44b0-b680-c1996ae32c68",
-      "name": "Check Analysis1",
+      "id": "25b8e275-8f59-4880-a4b3-d994d3ed0e47",
+      "name": "Folder Exists?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.1,
       "position": [
-        624,
-        2032
+        2096,
+        288
       ]
     },
     {
       "parameters": {
-        "errorMessage": "Error"
+        "assignments": {
+          "assignments": [
+            {
+              "id": "folder-id",
+              "name": "id",
+              "value": "={{ $json.files[0].id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
       },
-      "id": "f4e0320e-0ef4-45f5-ac15-6f7afeff84af",
-      "name": "Error Handler1",
-      "type": "n8n-nodes-base.stopAndError",
-      "typeVersion": 1,
+      "id": "ea6df11e-8d0a-4b62-bbf7-a612c360d521",
+      "name": "Use Existing Folder",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        848,
-        2112
+        2544,
+        -80
       ]
+    },
+    {
+      "parameters": {
+        "operation": "folder:create"
+      },
+      "id": "1ee986af-4e45-481b-97f2-c85ad7bb34e4",
+      "name": "Create Monthly Folder",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2352,
+        368
+      ],
+      "continueOnFail": true
     }
   ],
   "pinData": {},
@@ -166,69 +234,113 @@
       "main": [
         [
           {
-            "node": "Analyze Content1",
+            "node": "Generate Image",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Analyze Content1": {
+    "Generate Image": {
       "main": [
         [
           {
-            "node": "Check Analysis1",
+            "node": "Download Image",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generate 10 Prompts1": {
+    "Download Image": {
       "main": [
         [
           {
-            "node": "Generate Images1",
+            "node": "Prepare File Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generate Images1": {
+    "Prepare File Data": {
       "main": [
         [
           {
-            "node": "Save Images1",
+            "node": "Check if Folder Exists",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Save Images1": {
+    "Check if Folder Exists": {
       "main": [
         [
           {
-            "node": "Prepare Output1",
+            "node": "Folder Exists?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Analysis1": {
+    "Folder Exists?": {
       "main": [
         [
           {
-            "node": "Generate 10 Prompts1",
+            "node": "Use Existing Folder",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Error Handler1",
+            "node": "Create Monthly Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Existing Folder": {
+      "main": [
+        [
+          {
+            "node": "Upload to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Monthly Folder": {
+      "main": [
+        [
+          {
+            "node": "Upload to Google Drive",
             "type": "main",
             "index": 0
           }
@@ -240,7 +352,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "08e24c2b-be9d-4bf4-8deb-c1c7017139ea",
+  "versionId": "4fd84dbd-1efe-4f65-881f-e6619a63cb64",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "8ba5b87178cf36ad914eab86a837f8630151ee80f055208ac6e2871f0e093149"
