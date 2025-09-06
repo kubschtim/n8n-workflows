@@ -1,77 +1,79 @@
 {
-  "name": "personal manager",
+  "name": "image generation",
   "nodes": [
     {
       "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f90d892a-df49-4929-90c1-98a6049eced2",
+      "name": "Telegram Trigger",
+      "webhookId": "49fafb12-82f1-482d-9976-1b4d02d5335c"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "3d361841-673f-435a-944f-5b0d7d0a5e73"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
         "options": {}
       },
-      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
-      "typeVersion": 1.1,
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
       "position": [
-        1120,
-        288
+        208,
+        0
       ],
-      "id": "05a1cdb7-c891-49fd-87f3-1602fef08a3f",
-      "name": "When chat message received",
-      "webhookId": "chat-webhook-123"
+      "id": "5d95aa81-1369-4e8e-a52b-e7c147fa882e",
+      "name": "Switch"
     },
     {
       "parameters": {
-        "resource": "image",
-        "prompt": "={{ $json.chatInput }}",
-        "options": {
-          "size": {
-            "__rl": true,
-            "value": "1024x1024",
-            "mode": "list"
-          }
-        }
+        "resource": "file",
+        "additionalFields": {}
       },
-      "id": "f9151596-2983-42fd-93f5-c667fec11d03",
-      "name": "Generate Image",
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 1.3,
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
       "position": [
-        1312,
-        288
-      ]
+        416,
+        0
+      ],
+      "id": "816f6828-ddbb-4200-a194-96055d8721ad",
+      "name": "Download file",
+      "webhookId": "3140b289-0069-4040-840c-4cbb8d9ce9ea"
     },
     {
       "parameters": {
-        "url": "={{ $json.data[0].url }}",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "file"
-            }
-          }
-        }
-      },
-      "id": "301c36bb-d1cb-43fb-b914-7643eb3a15f7",
-      "name": "Download Image",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1520,
-        288
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Prepare filename and metadata\nconst chatInput = $('When chat message received').first().json.chatInput;\nconst timestamp = new Date();\nconst dateStr = timestamp.toISOString().split('T')[0];\nconst timeStr = timestamp.toTimeString().split(' ')[0].replace(/:/g, '-');\n\n// Create a safe filename from the prompt (first 50 chars, no special chars)\nconst safePrompt = chatInput\n  .substring(0, 50)\n  .replace(/[^a-zA-Z0-9 ]/g, '')\n  .replace(/\\s+/g, '_')\n  .toLowerCase();\n\n// Generate filename: date_time_prompt.png\nconst filename = `${dateStr}_${timeStr}_${safePrompt}.png`;\n\n// Get image data from previous node\nconst imageData = $('Generate Image').first().json;\n\nreturn [{\n  json: {\n    filename: filename,\n    prompt: chatInput,\n    timestamp: timestamp.toISOString(),\n    dateStr: dateStr,\n    revisedPrompt: imageData.data?.[0]?.revised_prompt || chatInput,\n    folderName: `AI_Images_${dateStr.substring(0, 7)}` // Monthly folders (YYYY-MM)\n  },\n  binary: {\n    data: $input.first().binary.data\n  }\n}];"
-      },
-      "id": "b14c7a23-f1b2-4d26-b2e8-fd63abc13e2e",
-      "name": "Prepare File Data",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1712,
-        288
-      ]
-    },
-    {
-      "parameters": {
-        "name": "={{ $json.filename }}",
         "driveId": {
           "__rl": true,
           "mode": "list",
@@ -85,263 +87,130 @@
         },
         "options": {}
       },
-      "id": "cd9334fa-5aa8-4b2c-ba9d-554394dd2092",
-      "name": "Upload to Google Drive",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        2880,
-        272
-      ]
+        624,
+        0
+      ],
+      "id": "5118fed8-a30a-42e1-8941-ae7024caa113",
+      "name": "Upload file"
     },
     {
       "parameters": {
-        "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "YOUR_GOOGLE_SHEET_ID",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Image_Log",
-          "mode": "name"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Timestamp": "={{ $('Prepare File Data').first().json.timestamp }}",
-            "Prompt": "={{ $('Prepare File Data').first().json.prompt }}",
-            "Filename": "={{ $('Prepare File Data').first().json.filename }}",
-            "Drive Link": "={{ $json.webViewLink }}",
-            "Drive ID": "={{ $json.id }}",
-            "Folder": "={{ $('Prepare File Data').first().json.folderName }}",
-            "Size": "={{ $json.size }}",
-            "Status": "Success"
-          }
-        },
         "options": {}
       },
-      "id": "15d350fd-279e-477f-bd93-2242a5da8a57",
-      "name": "Log to Google Sheet",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [
-        3184,
-        272
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Create a comprehensive response for the chat\nconst driveFile = $('Upload to Google Drive').first().json;\nconst fileData = $('Prepare File Data').first().json;\n\nlet response = `✅ **Image Generated & Stored Successfully!**\\n\\n`;\nresponse += `🎨 **Your Prompt:** ${fileData.prompt}\\n\\n`;\nresponse += `📁 **Saved to Google Drive:**\\n`;\nresponse += `   • Filename: ${fileData.filename}\\n`;\nresponse += `   • Folder: ${fileData.folderName}\\n`;\nresponse += `   • Size: ${(driveFile.size / 1024).toFixed(2)} KB\\n\\n`;\nresponse += `🔗 **Permanent Link:** ${driveFile.webViewLink}\\n\\n`;\nresponse += `📊 **Logged:** Added to tracking spreadsheet\\n\\n`;\nresponse += `💡 **Benefits:**\\n`;\nresponse += `   • Image stored permanently in your Drive\\n`;\nresponse += `   • Shareable link that never expires\\n`;\nresponse += `   • Organized in monthly folders\\n`;\nresponse += `   • Full history in spreadsheet`;\n\nreturn [{\n  json: {\n    response: response,\n    driveLink: driveFile.webViewLink,\n    fileId: driveFile.id\n  }\n}];"
-      },
-      "id": "b52450d1-5e48-4e21-a2c6-635d8b57b846",
-      "name": "Format Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3424,
-        272
-      ]
-    },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "operation": "list"
-      },
-      "id": "9feca76a-8fd3-482d-8345-b8c86cff4bcb",
-      "name": "Check if Folder Exists",
-      "type": "n8n-nodes-base.googleDrive",
-      "typeVersion": 3,
-      "position": [
-        1904,
-        288
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "folder-exists",
-              "leftValue": "={{ $json.files.length }}",
-              "rightValue": 0,
-              "operator": {
-                "type": "number",
-                "operation": "gt"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "25b8e275-8f59-4880-a4b3-d994d3ed0e47",
-      "name": "Folder Exists?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.1,
-      "position": [
-        2096,
-        288
-      ]
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "folder-id",
-              "name": "id",
-              "value": "={{ $json.files[0].id }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "ea6df11e-8d0a-4b62-bbf7-a612c360d521",
-      "name": "Use Existing Folder",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        2544,
-        -80
-      ]
+        832,
+        0
+      ],
+      "id": "9629f6e4-3e17-44ea-9484-4e47226da382",
+      "name": "Set Text"
     },
     {
       "parameters": {
-        "operation": "folder:create"
+        "options": {}
       },
-      "id": "1ee986af-4e45-481b-97f2-c85ad7bb34e4",
-      "name": "Create Monthly Folder",
-      "type": "n8n-nodes-base.googleDrive",
-      "typeVersion": 3,
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
       "position": [
-        2352,
-        368
+        1056,
+        144
       ],
-      "continueOnFail": true
+      "id": "d57f7ad8-43ae-437e-9896-43c393a8176c",
+      "name": "Image Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        928,
+        352
+      ],
+      "id": "bfc903ea-73d8-4866-974f-f1e724ad44bf",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "hyDAAbrNQwLInwbH",
+          "name": "OpenAi account"
+        }
+      }
     }
   ],
   "pinData": {},
   "connections": {
-    "When chat message received": {
+    "Telegram Trigger": {
       "main": [
         [
           {
-            "node": "Generate Image",
+            "node": "Switch",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generate Image": {
+    "Switch": {
       "main": [
         [
           {
-            "node": "Download Image",
+            "node": "Download file",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Download Image": {
+    "Download file": {
       "main": [
         [
           {
-            "node": "Prepare File Data",
+            "node": "Upload file",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare File Data": {
+    "Upload file": {
       "main": [
         [
           {
-            "node": "Check if Folder Exists",
+            "node": "Set Text",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check if Folder Exists": {
+    "Set Text": {
       "main": [
         [
           {
-            "node": "Folder Exists?",
+            "node": "Image Agent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Folder Exists?": {
-      "main": [
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
         [
           {
-            "node": "Use Existing Folder",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Create Monthly Folder",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Use Existing Folder": {
-      "main": [
-        [
-          {
-            "node": "Upload to Google Drive",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Upload to Google Drive": {
-      "main": [
-        [
-          {
-            "node": "Log to Google Sheet",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Log to Google Sheet": {
-      "main": [
-        [
-          {
-            "node": "Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Create Monthly Folder": {
-      "main": [
-        [
-          {
-            "node": "Upload to Google Drive",
-            "type": "main",
+            "node": "Image Agent",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]
@@ -352,11 +221,10 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "4fd84dbd-1efe-4f65-881f-e6619a63cb64",
+  "versionId": "fab17721-a019-40e8-8b3f-511ffd4eab45",
   "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "8ba5b87178cf36ad914eab86a837f8630151ee80f055208ac6e2871f0e093149"
+    "instanceId": "538d3e8057c33d71122dbd56adfeb56cf2a69e4f477ca811d6617500701b0d25"
   },
-  "id": "RZ21cBzZdYny1aqu",
+  "id": "EzIuV2DsQ80TssrP",
   "tags": []
 }
